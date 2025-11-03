@@ -1,0 +1,205 @@
+%%
+%% This is file `sample-sigconf-biblatex.tex',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% samples.dtx  (with options: `sigconf-biblatex')
+%% 
+%% IMPORTANT NOTICE:
+%% 
+%% For the copyright see the source file.
+%% 
+%% Any modified versions of this file must be 
+%% with new filenames distinct from sample-sigconf-biblatex.tex.
+%% 
+%% For distribution of the original source see the terms
+%% for copying and modification in the file samples.dtx.
+%% 
+%% This generated file may be distributed as long as the
+%% original source files, as listed above, are part of the
+%% same distribution. (The sources need not necessarily be
+%% in the same archive or directory.)
+%%
+%%
+%% Commands for TeXCount
+%TC:macro \cite [option:text,text]
+%TC:macro \citep [option:text,text]
+%TC:macro \citet [option:text,text]
+%TC:envir table 0 1
+%TC:envir table* 0 1
+%TC:envir tabular [ignore] word
+%TC:envir displaymath 0 word
+%TC:envir math 0 word
+%TC:envir comment 0 0
+%%
+%%
+%% The first command in your LaTeX source must be the \documentclass
+%% command.
+%%
+%% For submission and review of your manuscript please change the
+%% command to \documentclass[manuscript, screen, review]{acmart}.
+%%
+%% When submitting camera ready or to TAPS, please change the command
+%% to \documentclass[sigconf]{acmart} or whichever template is required
+%% for your publication.
+%%
+%%
+%\documentclass[sigconf,review,natbib=false]{acmart}
+%\documentclass[sigconf,natbib=false,screen]{acmart}
+%\documentclass[sigconf,screen]{acmart}
+%\documentclass[acmsmall,screen,review,anonymous]{acmart}
+\documentclass[sigplan,10pt]{acmart}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+
+
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs} 
+\usepackage{threeparttable}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{colortbl}
+\usepackage[most]{tcolorbox}
+\usepackage{caption}
+\usepackage{balance}
+\usepackage[normalem]{ulem}
+\usepackage{xcolor}
+\pagestyle{empty}
+
+\usepackage{amsthm}
+
+% 定义 Definition 环境
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}{Example}[section]
+
+% ----------- 改进样式 -----------
+\algrenewcommand\algorithmicprocedure{\textbf{Procedure}} % 大写开头
+\algrenewcommand\algorithmicif{\textbf{if}}
+\algrenewcommand\algorithmicthen{}
+\algrenewcommand\algorithmicelse{\textbf{else}}
+\algrenewcommand\algorithmicfor{\textbf{for}}
+\algrenewcommand\algorithmicforall{\textbf{for all}}
+\algrenewcommand\algorithmicdo{\textbf{do}}
+\algrenewcommand\algorithmicend{\textbf{end}}
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+\renewcommand{\thealgorithm}{\arabic{algorithm}}
+\floatname{algorithm}{Algorithm}
+\algdef{SE}[PROCEDURE]{Procedure}{EndProcedure}[2]{\textbf{procedure} #1(#2)}{\textbf{end procedure}}
+% 调整行距和缩进
+\makeatletter
+\renewcommand{\ALG@beginalgorithmic}{\small}
+\makeatother
+
+
+\usepackage{pifont}
+\usepackage{booktabs}
+\usepackage{cleveref}
+\crefname{section}{§}{§§}
+\Crefname{section}{§}{§§}
+
+\newcommand{\mytodoblue}[1]{\textcolor{blue}{\ding{46}~{\sf}~#1}}
+\newcommand{\mytodored}[1]{\textcolor{red}{\ding{46}~{\sf}~#1}}
+\newcommand{\mytodogreen}[1]{\textcolor{mygreen}{\ding{46}~{\sf}~#1}}
+\newcommand{\mytodoorange}[1]{\textcolor{orange}{\ding{46}~{\sf}~#1}}
+\newcommand{\mytodocyan}[1]{\textcolor{cyan}{\ding{46}~{\sf}~#1}}
+\newcommand{\mytodopink}[1]{\textcolor{purple}{\ding{46}~{\sf}~#1}}
+\usepackage{pgffor}
+\usepackage{pifont} % For checkmark and cross symbols
+
+\usepackage{xcolor,pifont}
+
+% 自定义彩色打勾和打叉命令
+\newcommand{\cmark}{\textcolor{green!60!black}{\ding{51}}}   % 绿色打勾
+\newcommand{\xmark}{\textcolor{red}{\ding{55}}}   % 红色打叉
+
+
+% to show s or not
+\newif\ifshowcomments
+%\showcommentsfalse
+\showcommentstrue
+\ifshowcomments
+\newcommand{\wu}[1]{\mytodored{[wu: #1]}}
+\newcommand{\cp}[1]{\mytodored{[cp: #1]}}
+%\newcommand{\zhang}[1]{\mytodoorange{[zhang: #1]}}
+\newcommand{\lin}[1]{\mytodored{[lin: #1]}}
+%\newcommand{\other}[1]{\mytodoblue{[other: #1]}}
+\else
+\newcommand{\wu}[1]{}
+\newcommand{\cp}[1]{}
+%\newcommand{\zhang}[1]{}
+\newcommand{\lin}[1]{}
+%\newcommand{\other}[1]{}
+\fi
+
+\newif\ifshowrevisioncomments
+\showcommentsfalse
+%\showrevisioncommentstrue
+\showrevisioncommentsfalse
+\ifshowrevisioncomments
+\newcommand{\revision}[1]{\textcolor{blue}{{#1}}}
+\newcommand{\deletion}[1]{\textcolor{red}{{\sout{#1}}}}
+\else
+\newcommand{\revision}[1]{#1}
+\newcommand{\deletion}[1]{}
+\fi
+
+
+\newcommand{\toolname}{\textsc{ValScope}}
+\newcommand{\reported}{24}
+\newcommand{\confirmed}{16}
+
+\bibliographystyle{ACM-Reference-Format}
+
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+
+
+\begin{document}
+\newtcolorbox{mybox}[2][]{
+  colframe = black,
+  colback  = gray!20,
+  coltitle = black,
+  left = 1mm,
+  right = 1mm,
+  top = 1mm,
+  bottom = 1mm,
+  boxsep=5pt,
+  arc=2mm,
+  title=#2,
+  #1
+}
+
+\title{ValScope: Value-Semantics-Aware Metamorphic Testing for Detecting Logical Bugs in DBMSs}
+
+
+\input{abstract.tex}
+
+\settopmatter{printfolios=true}
+\maketitle
+\pagestyle{plain}
+\input{introduction.tex}
+%\input{preliminaries.tex}
+\input{approach.tex}
+%\input{implement.tex}
+%\input{evaluation.tex}
+%\input{discussion.tex}
+%\input{Limitations and Future work}
+%\input{relatedWork.tex}
+%\input{conclusion.tex}
+
+
+%\newpage
+
+\bibliographystyle{ACM-Reference-Format}
+\balance
+\bibliography{sample-base}
+%\printbibliography
+
+\end{document}
+\endinput
