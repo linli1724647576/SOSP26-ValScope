@@ -2,6 +2,7 @@
 %\label{sec：approach}
 
 \section{SQL Query Approximation}
+\label{sec: SQL Query Approximation}
 
 A fundamental challenge in DBMS testing lies in the test oracle problem:  
 given two semantically related SQL queries, it is often unclear whether their outputs should be identical or follow a predictable metamorphic relationship.  
@@ -19,12 +20,12 @@ This relation captures inclusion or containment among query result sets.
 	\label{def:set_approximation}
 	
 	Given a database \( D \), let \( q_1 \) and \( q_2 \) be two SQL queries whose result sets are \( R(q_1, D) \) and \( R(q_2, D) \), respectively.  
-	We say that \( q_1 \) is the \textit{set-based under-approximation} of \( q_2 \) over \( D \), denoted by  
+	We say that \( q_1 \) is the \textit{set-level under-approximation} of \( q_2 \) over \( D \), denoted by  
 	\( q_1 \preceq_D^s q_2 \), if and only if:
 	\[
 	R(q_1, D) \subseteq R(q_2, D)
 	\]
-	Conversely, \( q_1 \) is the \textit{set-based over-approximation} of \( q_2 \) over \( D \), denoted by  
+	Conversely, \( q_1 \) is the \textit{set-level over-approximation} of \( q_2 \) over \( D \), denoted by  
 	\( q_1 \succeq_D^s q_2 \), if and only if:
 	\[
 	R(q_1, D) \supseteq R(q_2, D)
@@ -37,7 +38,7 @@ This relation captures inclusion or containment among query result sets.
 Intuitively, the set-semantic approximation forms a partial order over queries:  
 \( q_1 \preceq_D^s q_2 \) means that \( q_1 \) produces a narrower or more restrictive result than \( q_2 \),  
 while \( q_1 \succeq_D^s q_2 \) means that \( q_1 \) yields a broader or less restrictive result.  
-These two relations are inverses of each other and together define the lattice of set-based approximations.
+These two relations are inverses of each other and together define the lattice of set-level approximations.
 
 
 \begin{example}
@@ -70,8 +71,8 @@ These two relations are inverses of each other and together define the lattice o
 
 \subsection{Value-Semantic Approximation}
 
-To overcome the limitation of purely set-based inclusion, we extend the approximation relation from the result-set level to the value level. 
-Unlike the set-based relation that focuses on tuple inclusion, the value-semantic relation captures the monotonic variation of target columns — the columns whose values are directly affected by functional or aggregation operations.  
+To overcome the limitation of purely set-level inclusion, we extend the approximation relation from the result-set level to the value level. 
+Unlike the set-level relation that focuses on tuple inclusion, the value-semantic relation captures the monotonic variation of target columns — the columns whose values are directly affected by functional or aggregation operations.  
 This allows the framework to detect logical bugs where queries return identical tuples but diverge in their value semantics, such as incorrect computations in aggregation or updates.
 
 \begin{definition}[Value-Semantic Approximation Relation]
@@ -86,7 +87,7 @@ This allows the framework to detect logical bugs where queries return identical 
 	Otherwise, \( G \) represents a deterministic ordering over non-target columns 
 	(e.g., primary key or lexicographic ordering of attributes) to align tuples for comparison.
 	
-	We say that \( q_1 \) is the \textit{value-based over-approximation} of \( q_2 \) over \( D \), denoted by 
+	We say that \( q_1 \) is the \textit{value-level over-approximation} of \( q_2 \) over \( D \), denoted by 
 	\( q_1 \succeq_D^v q_2 \), if and only if:
 	\[
 	\forall g \in G^*, \forall c \in C_t, \;
@@ -96,7 +97,7 @@ This allows the framework to detect logical bugs where queries return identical 
 	and \( V_q(g, c) \) denotes the value of column \( c \) in group \( g \) (or tuple position) 
 	produced by query \( q \).
 	
-	Conversely, \( q_1 \) is the \textit{value-based under-approximation} of \( q_2 \), denoted by 
+	Conversely, \( q_1 \) is the \textit{value-level under-approximation} of \( q_2 \), denoted by 
 	\( q_1 \preceq_D^v q_2 \), if and only if:
 	\[
 	\forall g \in G^*, \forall c \in C_t, \;
@@ -264,8 +265,8 @@ bridging the value- and set-level semantics within the same unified framework.
 
 Intuitively, the propagation mechanism provides the semantic bridge between 
 \textit{tuple-level inclusion} and \textit{value-level monotonicity}.
-Set-based approximations can trigger value changes through monotone operators,
-while value-based changes can, in turn, alter the query result set when the affected values participate in predicates.
+Set-level approximations can trigger value changes through monotone operators,
+while value-level changes can, in turn, alter the query result set when the affected values participate in predicates.
 This bidirectional propagation enables comprehensive reasoning over multi-layer SQL dependencies.
 
 
@@ -334,11 +335,213 @@ The unified propagation model forms the semantic foundation of our testing frame
 
 \subsection{Overview}
 
+\begin{figure*}[t]
+	\centering
+	\includegraphics[width=1\linewidth]{./images/Overview.pdf} 
+	\vspace{-8mm}
+	\caption{\textbf{Overview of our approach.}}
+	\label{fig:overview}
+%	\vspace{-2mm}
+\end{figure*}
+
+We illustrate the overall workflow of our approach in Figure~\ref{fig:overview}. 
+The entire process follows a generate–mutate–verify paradigm designed to uncover logic bugs in DBMSs. 
+In the pre-processing phase, we randomly populate multiple tables in a test database, following standard DBMS random testing practices~\cite{kamm2023testing}. 
+This randomized setup provides a diverse and unbiased data distribution for subsequent query evaluations.
+Next, our system generates a syntactically valid SQL query that serves as the original query. 
+It then parses the query and traverses its AST to identify which grammatical constructs can be safely mutated. 
+Based on the SQL query approximation models defined in Section~\ref{sec: SQL Query Approximation}, the system automatically synthesizes several approximate queries by mutating the original queries.
+After the mutated queries are constructed, the framework performs approximation propagation analysis to reason how local semantic changes at the mutated node propagate through the SQL AST. 
+This analysis establishes the global query-level approximation relation (either at the set level or the value level) between the original and mutated queries. 
+Finally, both queries are executed on the tested DBMS instance, and their outputs are compared against the predicted approximation relation. 
+Any violation of this expected relation indicates a potential logical inconsistency in the DBMS.
+
+In the following sections, we introduce each core component in detail, including the construction of the original query (Section \ref{subsec:Construction of the Original Query}), the design of approximate mutators (Section \ref{subsec:Approximate Mutators}), the propagation algorithm (Section \ref{subsec:Approximation Propagation Analysis}), and the result checking procedure (Section \ref{subsec:Results Checking}).
+
 \subsection{Construction of the Original Query}
+\label{subsec:Construction of the Original Query}
+
+%\begin{figure}[t]
+%	\scriptsize
+%	\[
+%	\begin{array}{rlcl}
+%		\textit{Statement} & S & ::= & Q \mid Q~\texttt{FOR}~LM \mid \texttt{WITH}~WI~(\texttt{,}~WI)^*~Q~[\texttt{FOR}~LM] \\[2pt]
+%		
+%		\textit{Query} & Q & ::= & QC~[OB]~[L] \mid Q~SO~Q \\[2pt]
+%		
+%		\textit{SelectCore} & QC & ::= & \texttt{SELECT}~[\texttt{DISTINCT}]~SL~FC~[WH]~[GB] \\[2pt]
+%		
+%		\textit{SelectList} & SL & ::= & VE~[\texttt{AS}~id]~(\texttt{,}~VE~[\texttt{AS}~id])^* \\[2pt]
+%		
+%		\textit{FromClause} & FC & ::= & \texttt{FROM}~TR~(\texttt{,}~TR)^* \\[2pt]
+%		
+%		\textit{TableRef} & TR & ::= & TN~[\texttt{AS}~id] \mid (\;Q\;)~\texttt{AS}~id \mid JT \\[2pt]
+%		
+%		\textit{JoinedTable} & JT & ::= & TR~JTYP~\texttt{JOIN}~TR~[\texttt{ON}~BE] \\[2pt]
+%		
+%		\textit{JoinType} & JTYP & ::= & \texttt{INNER} \mid \texttt{LEFT OUTER} \mid \texttt{RIGHT OUTER} \mid \texttt{CROSS} \\[2pt]
+%		
+%		\textit{Where} & WH & ::= & \texttt{WHERE}~BE \\[2pt]
+%		
+%		\textit{GroupBy} & GB & ::= & \texttt{GROUP BY}~CR~(\texttt{,}~CR)^*~[\texttt{HAVING}~BE] \\[2pt]
+%		
+%		\textit{OrderBy} & OB & ::= & \texttt{ORDER BY}~OI~(\texttt{,}~OI)^* \\[2pt]
+%		
+%		\textit{OrderItem} & OI & ::= & VE~[\texttt{ASC}\mid\texttt{DESC}] \\[2pt]
+%		
+%		\textit{Limit} & L & ::= & \texttt{LIMIT}~int \\[2pt]
+%		
+%		\textit{SetOp} & SO & ::= & \texttt{UNION} \mid \texttt{UNION ALL} \mid \texttt{INTERSECT} \mid \texttt{EXCEPT} \\[2pt]
+%		
+%		\textit{BoolExpr} & BE & ::= & VE~COP~VE \mid \texttt{(}BE\texttt{)}~\texttt{AND}~\texttt{(}BE\texttt{)}
+%		\\
+%		& & \mid & \texttt{(}BE\texttt{)}~\texttt{OR}~\texttt{(}BE\texttt{)} \mid \texttt{NOT}~BE
+%		\mid VE~\texttt{IS}~[\texttt{NOT}]~\texttt{NULL}
+%		\\
+%		& & \mid & \texttt{EXISTS}~(\;Q\;) \\[2pt]
+%		
+%		\textit{CompOp} & COP & ::= & \texttt{=} \mid \texttt{<>} \mid \texttt{<} \mid \texttt{>} \mid \texttt{<=} \mid \texttt{>=} \mid \texttt{LIKE} \mid \texttt{REGEXP} \mid \texttt{RLIKE} \mid \texttt{BETWEEN} \\[2pt]
+%		
+%		\textit{ValueExpr} & VE & ::= & FCALL \mid SUBSEL \mid CASE \mid CR \mid CONST \\[2pt]
+%		
+%		\textit{FuncCall} & FCALL & ::= & id~\texttt{(}~[ARG~(\texttt{,}~ARG)^*]~\texttt{)} \\[2pt]
+%		
+%		\textit{Arg} & ARG & ::= & VE \mid \texttt{CAST(}~VE~\texttt{AS}~TYP~\texttt{)} \\[2pt]
+%		
+%		\textit{AtomicSubselect} & SUBSEL & ::= & \texttt{(}~Q~\texttt{)} \\[2pt]
+%		
+%		\textit{CaseExpr} & CASE & ::= & \texttt{CASE}~\texttt{WHEN}~BE~\texttt{THEN}~VE~\texttt{ELSE}~VE~\texttt{END} \\[2pt]
+%		
+%		\textit{ColumnRef} & CR & ::= & id~[\texttt{.}~id] \\[2pt]
+%		
+%		\textit{Const} & CONST & ::= & int \mid str \mid num \mid \texttt{TRUE} \mid \texttt{FALSE} \mid \texttt{NULL} \\[2pt]
+%		
+%		\textit{LockMode} & LM & ::= & \texttt{UPDATE} \mid \texttt{SHARE} \mid \texttt{NO KEY UPDATE} \mid \texttt{KEY SHARE} \\[2pt]
+%		
+%		\textit{WithItem} & WI & ::= & id~\texttt{AS}~(\;Q\;) \\[2pt]
+%		
+%		\textit{TableName} & TN & ::= & id \\[2pt]
+%		
+%		\textit{TypeName} & TYP & ::= & id \\[2pt]
+%		
+%		\textit{Identifier} & id & ::= & \text{SQL identifier} \qquad
+%		\textit{Literals: } int,~num,~str
+%	\end{array}
+%	\]
+%	\caption{\textbf{Compact SQL syntax supported by the tool (BNF-style).}}
+%	\label{fig:sql-bnf-compact}
+%\end{figure}
+
+\begin{figure}[t]
+	\scriptsize
+	\renewcommand{\arraystretch}{0.9}
+	\[
+	\begin{array}{rlcl}
+		\textit{Statement} & S & ::= & 
+		Q \mid Q~\texttt{FOR}~LM 
+		\mid \texttt{WITH}~WI~(\texttt{,}~WI)^*~Q~[\texttt{FOR}~LM] \\[2pt]
+		
+		\textit{Query} & Q & ::= & 
+		QC~[OB]~[L] 
+		\mid Q~SO~Q \\[2pt]
+		
+		\textit{SelectCore} & QC & ::= &
+		\texttt{SELECT}~[\texttt{DISTINCT}]~SL~FC~[WH]~[GB] \\[2pt]
+		
+		\textit{SelectList} & SL & ::= & 
+		VE~[\texttt{AS}~id]~(\texttt{,}~VE~[\texttt{AS}~id])^* \\[2pt]
+		
+		\textit{FromClause} & FC & ::= & 
+		\texttt{FROM}~TR~(\texttt{,}~TR)^* \\[2pt]
+		
+		\textit{TableRef} & TR & ::= & 
+		id~[\texttt{AS}~id] 
+		\mid (\;Q\;)~\texttt{AS}~id 
+		\mid TR~JTYP~\texttt{JOIN}~TR~[\texttt{ON}~BE] \\[2pt]
+		
+		\textit{JoinType} & JTYP & ::= &
+		\texttt{INNER} 
+		\mid \texttt{LEFT OUTER} 
+		\mid \texttt{RIGHT OUTER} 
+		\mid \texttt{CROSS} \\[2pt]
+		
+		\textit{Where} & WH & ::= &
+		\texttt{WHERE}~BE \\[2pt]
+		
+		\textit{GroupBy} & GB & ::= &
+		\texttt{GROUP BY}~CR~(\texttt{,}~CR)^*~[\texttt{HAVING}~BE] \\[2pt]
+		
+		\textit{OrderBy} & OB & ::= &
+		\texttt{ORDER BY}~VE~[\texttt{ASC}\mid\texttt{DESC}]~(\texttt{,}~VE~[\texttt{ASC}\mid\texttt{DESC}])^* \\[2pt]
+		
+		\textit{Limit} & L & ::= &
+		\texttt{LIMIT}~int \\[2pt]
+		
+		\textit{SetOp} & SO & ::= &
+		\texttt{UNION} 
+		\mid \texttt{UNION ALL} 
+		\mid \texttt{INTERSECT} 
+		\mid \texttt{EXCEPT} \\[2pt]
+		
+		\textit{BoolExpr} & BE & ::= &
+		VE~COP~VE 
+		\mid \texttt{NOT}~BE 
+		\mid BE~\texttt{AND}~BE 
+		\mid BE~\texttt{OR}~BE 
+		\\[2pt]
+		& & \mid &
+		\texttt{EXISTS}~(\;Q\;) \\[2pt]
+		
+		\textit{CompOp} & COP & ::= &
+		\texttt{=} 
+		\mid \texttt{<>} 
+		\mid \texttt{<} 
+		\mid \texttt{>} 
+		\mid \texttt{<=} 
+		\mid \texttt{>=} 
+		\mid \texttt{LIKE} 
+		\mid \texttt{BETWEEN} \\[2pt]
+		
+		\textit{ValueExpr} & VE & ::= &
+		\texttt{CASE}~\texttt{WHEN}~BE~\texttt{THEN}~VE~\texttt{ELSE}~VE~\texttt{END}
+		\mid \texttt{(}~Q~\texttt{)} 
+		\\[2pt]
+		& & \mid &
+		\mid id
+		\mid FCALL
+		\mid CONST \\[2pt]
+		
+		\textit{FuncCall} & FCALL & ::= &
+		id~\texttt{(}~[VE~(\texttt{,}~VE)^*]~\texttt{)} \\[2pt]
+		
+		\textit{LockMode} & LM & ::= &
+		\texttt{UPDATE} 
+		\mid \texttt{SHARE} 
+		\mid \texttt{NO KEY UPDATE} 
+		\mid \texttt{KEY SHARE} \\[2pt]
+		
+		\textit{WithItem} & WI & ::= &
+		id~\texttt{AS}~(\;Q\;) \\[2pt]
+		
+		\textit{ColumnRef} & CR & ::= &
+		id~[\texttt{.}~id] \\[2pt]
+		
+		\textit{Const} & CONST & ::= &
+		\text{integer, string, float, TRUE, FALSE, NULL}
+	\end{array}
+	\]
+	\vspace{-3mm}
+	\caption{\textbf{Compact SQL syntax supported by our approach.}}
+	\label{fig:sql-bnf-compact}
+\end{figure}
+
+
 
 \subsection{Approximate Mutators}
+\label{subsec:Approximate Mutators}
 
 \subsection{Approximation Propagation Analysis}
+\label{subsec:Approximation Propagation Analysis}
 
 In this section, we further develop an executable algorithm to determine how local semantic changes propagate through the SQL AST.
 The main purpose of this algorithm is to formalize the top-down reasoning process introduced in Definition~\ref{def:approximation_propagation} into a systematic, bottom-up propagation procedure that connects local node mutations with their global semantic consequences at the query level.
@@ -349,106 +552,260 @@ Initially (Line~1–3), the algorithm receives the mutated node information $nod
 It first identifies the mutated node $n_{mut}$ and constructs its ancestor chain from the mutation site to the query root, represented as $\text{list}=[n_{mut},\ldots,n_{root}]$.  
 This structure enables the algorithm to traverse each parent operator sequentially and reason about how the mutation propagates upward.
 % Step 2: Local relation at mutation site
-The algorithm then initializes the local semantic level of the mutation (Line~4–6):
+The algorithm then initializes the local semantic level of the mutation (Line~5–7):
 if the mutated node involves predicates or subqueries, it starts at the set level ($\alpha(n_{mut})=s$); otherwise, for expressions or aggregations, it starts at the value level ($\alpha(n_{mut})=v$).
 A direction accumulator $sign$ is also initialized to $+1$ to indicate that propagation initially preserves directionality.
 % Step 3: Bottom-up propagation
-In the propagation stage (Line~8–17), the algorithm iteratively traverses each parent node of $n_{mut}$ in a bottom-up manner.  
-For each parent operator $op_i$ (Line~9),  it consults Table~\ref{tab:op_type_rules} to retrieve the corresponding semantic mapping $(\alpha_{in} \rightarrow \alpha_{out})$ and its monotonic direction $\sigma(op_i)\in\{+1,-1\}$ (Line~10–12). 
-The semantic level $\alpha$ is updated according to the operator’s input-output mapping (e.g., Set$\rightarrow$Value for aggregation or Value$\rightarrow$Set for predicate filters), while the cumulative direction $sign$ is updated multiplicatively ($sign \gets sign \cdot \sigma(op_i)$), preserving or reversing the relation based on operator polarity (Line~13–15).  
+In the propagation stage (Line~9–17), the algorithm iteratively traverses each parent node of $n_{mut}$ in a bottom-up manner. 
+Before propagating, the algorithm invokes \textsc{DependsOn}$(n_i, n_{i-1})$ to check whether the parent node semantically depends on the mutated child node—by referencing its output column (for value-level nodes) or embedding it as a subquery or relation (for set-level nodes).   
+Only dependent nodes are considered for propagation.  
+For each parent operator $op_i$ (Line~9),  it consults Table~\ref{tab:op_type_rules} to retrieve the corresponding semantic mapping $(\alpha_{in} \rightarrow \alpha_{out})$ and its monotonic direction $\sigma(op_i)\in\{+1,-1\}$ (Line~13). 
+The semantic level $\alpha$ is updated according to the operator’s input-output mapping (e.g., Set$\rightarrow$Value for aggregation or Value$\rightarrow$Set for predicate filters), while the cumulative direction $sign$ is updated multiplicatively ($sign \gets sign \cdot \sigma(op_i)$), preserving or reversing the relation based on operator polarity (Line~14–16).  
 This recursive process effectively tracks the path of semantic transformation from the mutation site to the query output.
 % Step 4: Materialize root-level relation
-Finally, at the root node (Line~18–25), the algorithm derives the final query-level relation—returning either a set-level ($R(q_1,D)!\preceq^s_D!R(q_2,D)$) or value-level ($V_{q_1}(g,c)!\preceq^v_D!V_{q_2}(g,c)$) approximation, determined by the accumulated propagation direction.
+Finally, at the root node (Line~19–25), the algorithm derives the final query-level relation—returning either a set-level ($R(q_1,D)!\preceq^s_D!R(q_2,D)$) or value-level ($V_{q_1}(g,c)!\preceq^v_D!V_{q_2}(g,c)$) approximation, determined by the accumulated propagation direction.
+
+%\begin{algorithm}[t]
+%	\caption{Approximation Propagation across SQL AST}
+%	\label{alg:approximation_propagation}
+%	\footnotesize
+%	\begin{algorithmic}[1]
+%		\Require Mutated node info $node\_info$, SQL AST $AST$
+%		\Ensure Final query-level approximation between original and mutated queries
+%		
+%		\State \textbf{ // Step 1: Initialization}
+%		\State Identify mutated node $n_{mut}$.
+%		\State Build ancestor chain $\text{list}=[n_{mut},\ldots,n_{root}]$.
+%		
+%		\State \textbf{ // Step 2: Local relation at mutation site}
+%		\State Decide initial level $\alpha(n_{mut}) \in \{s,v\}$ by node type.
+%		\State Set local relation $\mathcal{R}(n_{mut}) \gets (\preceq^{\alpha(n_{mut})})$.
+%		\State Set direction accumulator $sign \gets +1$.
+%		
+%		\State \textbf{ // Step 3: Bottom-up propagation}
+%		\For{each parent node $n_i$ in \textit{list} (from child to root)}
+%		\State Determine operator type $op_i$ at $n_i$.
+%		\State Lookup rule in Table~\ref{tab:op_type_rules} for $op_i$.
+%		\State Obtain mapping $(\alpha_{in} \!\rightarrow\! \alpha_{out})$.
+%		\State Obtain monotonic direction $\sigma(op_i)\!\in\!\{+1,-1\}$.
+%		\State Update level: $\alpha(n_{i+1}) \gets \alpha_{out}$.
+%		\State Update direction: $sign \gets sign \cdot \sigma(op_i)$.
+%		\State Propagate symbolically: 
+%		\Statex \hspace{1.7em} $\mathcal{R}(n_{i+1}) \gets \mathcal{R}(n_i)$ with $sign$ applied.
+%		\EndFor
+%		
+%		\State \textbf{ // Step 4: Materialize root-level relation}
+%		\If{$\alpha(n_{root}) = s$}
+%		\State \textbf{return} $R(q_1,D) \preceq^{s}_{D} R(q_2,D)$ with sign $+$,
+%		\Statex \hspace{2.95em} or $R(q_1,D) \succeq^{s}_{D} R(q_2,D)$ with sign $-$.
+%		\Else
+%		\State \textbf{return} $V_{q_1}(g,c) \preceq^{v}_{D} V_{q_2}(g,c)$ with sign $+$,
+%		\Statex \hspace{2.95em} or $V_{q_1}(g,c) \succeq^{v}_{D} V_{q_2}(g,c)$ with sign $-$.
+%		\EndIf
+%	\end{algorithmic}
+%\end{algorithm}
+
 
 \begin{algorithm}[t]
 	\caption{Approximation Propagation across SQL AST}
-	\label{alg:approximation_propagation}
 	\footnotesize
+	\label{alg:approximation_propagation}
 	\begin{algorithmic}[1]
 		\Require Mutated node info $node\_info$, SQL AST $AST$
 		\Ensure Final query-level approximation between original and mutated queries
 		
-		\State \textbf{ // Step 1: Initialization}
+		\State \textbf{// Step 1: Initialization}
 		\State Identify mutated node $n_{mut}$.
-		\State Build ancestor chain $\text{list}=[n_{mut},\ldots,n_{root}]$.
+		\State Build ancestor chain $\text{list} = [n_{mut}, \ldots, n_{root}]$.
 		
-		\State \textbf{ // Step 2: Local relation at mutation site}
-		\State Decide initial level $\alpha(n_{mut}) \in \{s,v\}$ by node type.
+		\State \textbf{// Step 2: Local relation at mutation site}
+		\State Decide initial level $\alpha(n_{mut}) \in \{s, v\}$ by node type.
 		\State Set local relation $\mathcal{R}(n_{mut}) \gets (\preceq^{\alpha(n_{mut})})$.
-		\State Set direction accumulator $sign \gets +1$.
+		\State Initialize direction accumulator $sign \gets +1$.
 		
-		\State \textbf{ // Step 3: Bottom-up propagation}
+		\State \textbf{// Step 3: Bottom-up propagation}
 		\For{each parent node $n_i$ in \textit{list} (from child to root)}
 		\State Determine operator type $op_i$ at $n_i$.
-		\State Lookup rule in Table~\ref{tab:op_type_rules} for $op_i$.
-		\State Obtain mapping $(\alpha_{in} \!\rightarrow\! \alpha_{out})$.
-		\State Obtain monotonic direction $\sigma(op_i)\!\in\!\{+1,-1\}$.
+		\If{\textbf{not} \textsc{DependsOn}$(n_i, n_{i-1})$} \textbf{continue} \EndIf
+		\State Lookup rule of $op_i$ in Table~\ref{tab:op_type_rules} to get $(\alpha_{in}\!\rightarrow\!\alpha_{out}, \sigma(op_i))$.
 		\State Update level: $\alpha(n_{i+1}) \gets \alpha_{out}$.
 		\State Update direction: $sign \gets sign \cdot \sigma(op_i)$.
-		\State Propagate symbolically: 
-		\Statex \hspace{1.7em} $\mathcal{R}(n_{i+1}) \gets \mathcal{R}(n_i)$ with $sign$ applied.
+		\State Propagate symbolically: $\mathcal{R}(n_{i+1}) \gets \mathcal{R}(n_i)$ with $sign$ applied.
 		\EndFor
 		
-		\State \textbf{ // Step 4: Materialize root-level relation}
+		\State \textbf{// Step 4: Materialize root-level relation}
 		\If{$\alpha(n_{root}) = s$}
 		\State \textbf{return} $R(q_1,D) \preceq^{s}_{D} R(q_2,D)$ with sign $+$,
-		\Statex \hspace{2.95em} or $R(q_1,D) \succeq^{s}_{D} R(q_2,D)$ with sign $-$.
+		\State \textbf{or} $R(q_1,D) \succeq^{s}_{D} R(q_2,D)$ with sign $-$.
 		\Else
 		\State \textbf{return} $V_{q_1}(g,c) \preceq^{v}_{D} V_{q_2}(g,c)$ with sign $+$,
-		\Statex \hspace{2.95em} or $V_{q_1}(g,c) \succeq^{v}_{D} V_{q_2}(g,c)$ with sign $-$.
+		\State \textbf{or} $V_{q_1}(g,c) \succeq^{v}_{D} V_{q_2}(g,c)$ with sign $-$.
 		\EndIf
+%		\State \textbf{// Step 4: Materialize root-level relation}
+%		\If{$\alpha(n_{root}) = s$}
+%		\If{$sign = +1$}
+%		\State \textbf{return} $q_1 \preceq_D^s q_2$ \hfill \textit{// set-level under-approximation}
+%		\Else
+%		\State \textbf{return} $q_1 \succeq_D^s q_2$ \hfill \textit{// set-level over-approximation}
+%		\EndIf
+%		\Else
+%		\If{$sign = +1$}
+%		\State \textbf{return} $q_1 \preceq_D^v q_2$ \hfill \textit{// value-level under-approximation}
+%		\Else
+%		\State \textbf{return} $q_1 \succeq_D^v q_2$ \hfill \textit{// value-level over-approximation}
+%		\EndIf
+%		\EndIf
+
+		
+		\vspace{1.5mm}
+		% ---------- Numbered nested function ----------
+		\Function{DependsOn}{parent, child}
+		\If{$\alpha(child) = v$}
+		\State \Return parent.exprs contains column or alias from child
+		\ElsIf{$\alpha(child) = s$}
+		\State \Return parent.references(child) as subquery or table
+		\Else
+		\State \Return \textbf{false}
+		\EndIf
+		\EndFunction
+		% ---------------------------------------------
 	\end{algorithmic}
 \end{algorithm}
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=1\linewidth]{./images/propogation_example.pdf} 
+	\vspace{-6mm}
+	\caption{\textbf{Example of how the proposed algorithm propagates local semantic changes across the SQL AST.}}
+	\label{fig:motivating-example}
+%	\vspace{-5mm}
+\end{figure}
 
+As illustrated in Figure~\ref{fig:motivating-example}, the mutation occurs at the aggregation node where \texttt{MAX(c1)} is replaced by \texttt{MIN(c1)}, initializing a value-level relation ($\alpha=v$) with reversed monotonicity ($\sigma=-1$). 
+Following Algorithm~\ref{alg:approximation_propagation}, the algorithm then traverses its ancestor chain $\text{list}=[n_{\text{MAX}}, n_{\text{subq}}, n_{\text{WHERE}}, n_{\text{COUNT}}]$ to evaluate how this local change propagates upward through the query structure. 
+When the propagation reaches the subquery node (\texttt{SELECT ... AS x}), the semantics are lifted from the value level to the set level ($\alpha: v\!\rightarrow\!s$, $\sigma=+1$). 
+According to Table~\ref{tab:op_type_rules}, a subquery appearing in the \texttt{FROM} clause acts as a data source that preserves tuple inclusion—expanding the underlying relation results in a superset of tuples, thus maintaining positive monotonicity. 
+The subsequent \texttt{WHERE x>100} clause applies a filtering operator that preserves the set level but reverses direction ($\alpha: s\!\rightarrow\!s$, $\sigma=-1$). 
+Finally, the outer \texttt{COUNT(*)} operator aggregates the resulting set back to a value-level ($\alpha: s\!\rightarrow\!v$, $\sigma=+1$). 
+The cumulative sign is therefore $(-1)\!\times\!(+1)\!\times\!(-1)\!\times\!(+1)=+1$, yielding a final value-level approximation $V_{q_1}(g,c)\preceq^v_D V_{q_2}(g,c)$, which indicates that the output of $q_1$ forms a value-level under-approximation of $q_2$.
+
+%\begin{table*}[t]
+%	\centering
+%	\scriptsize
+%	\caption{\textbf{Operator Types and Semantic Propagation Rules}}
+%	\vspace{-3mm}
+%	\label{tab:op_type_rules}
+%	\renewcommand{\arraystretch}{1.15}
+%	\begin{tabular}{p{2.6cm} p{2.7cm} p{2.7cm} p{6.5cm}}
+%		\toprule
+%		\textbf{Operator Type} & \textbf{Semantic Mapping} & 
+%		\textbf{Monotonic Direction $\sigma(op)$} & 
+%		\textbf{Example and Interpretation} \\
+%		\midrule
+%		
+%		\textbf{Aggregation Functions} &
+%		Set $\rightarrow$ Value &
+%		\begin{tabular}[c]{@{}l@{}}$+1$: MAX, SUM, COUNT\\$-1$: MIN\end{tabular} &
+%		Maps an input set to a single value. Expanding the input set increases the output for MAX/SUM/COUNT or decreases it for MIN. \\
+%		
+%		\midrule
+%		\textbf{Predicate / Filter} &
+%		Value $\rightarrow$ Set &
+%		\begin{tabular}[c]{@{}l@{}}$+1$: $x>c$, $x\ge c$\\$-1$: $x<c$, $x\le c$\end{tabular} &
+%		Maps scalar values to tuple sets. Larger values make $x>c$ easier to satisfy (expanding the result set) but $x<c$ harder to satisfy (shrinking it). \\
+%		
+%		\midrule
+%		\textbf{Logical Operator} &
+%		Set $\rightarrow$ Set &
+%		\begin{tabular}[c]{@{}l@{}}$+1$: EXISTS, OR\\$-1$: NOT, NOT EXISTS, AND\end{tabular} &
+%		Negation or conjunction flips or restricts inclusion direction: 
+%		\texttt{EXISTS}/\texttt{OR} enlarge results; 
+%		\texttt{NOT}/\texttt{AND} shrink or invert inclusion. \\
+%		
+%		\midrule
+%		\textbf{Arithmetic / Expression} &
+%		Value $\rightarrow$ Value &
+%		\begin{tabular}[c]{@{}l@{}}Depends on sign of constant\end{tabular} &
+%		Linear expressions preserve or reverse direction: 
+%		\texttt{x + k} ($+1$ if $k>0$), 
+%		\texttt{x * k} ($+1$ if $k>0$, $-1$ if $k<0$), 
+%		\texttt{-x} reverses monotonicity. \\
+%		
+%		\midrule
+%		\textbf{Join / Projection / Subquery} &
+%		Set $\rightarrow$ Set &
+%		\begin{tabular}[c]{@{}l@{}}$+1$: JOIN, SELECT, UNION\\$-1$: INTERSECT, EXCEPT\end{tabular} &
+%		Structural operators propagate tuple inclusion: 
+%		\texttt{JOIN}, \texttt{UNION}, \texttt{SELECT} preserve inclusion ($+1$);
+%		\texttt{INTERSECT} and \texttt{EXCEPT} restrict or invert it ($-1$). \\
+%		
+%		\bottomrule
+%	\end{tabular}
+%\end{table*}
 
 \begin{table*}[t]
 	\centering
 	\scriptsize
-	\caption{\textbf{Operator Type and Semantic Propagation Rules}}
-	\vspace{-3mm}
+	\caption{\textbf{Operator Types and Semantic Propagation Rules.}}
+	\vspace{-2mm}
 	\label{tab:op_type_rules}
-	\renewcommand{\arraystretch}{1.1}
-	\begin{tabular}{p{2.5cm} p{2.7cm} p{2.7cm} p{6.5cm}}
+	\renewcommand{\arraystretch}{1.3}
+	\setlength{\extrarowheight}{1pt}
+	\setlength{\tabcolsep}{5pt}
+	
+	% 每隔一行使用灰色底色
+	\rowcolors{2}{rowgray}{white}
+	
+	\begin{tabular}{p{2.5cm} p{2.5cm} p{3.8cm} p{7.0cm}}
 		\toprule
-		\textbf{Operator Type} & \textbf{Semantic Mapping} & 
-		\textbf{Monotonic Direction $\sigma(op)$} & 
+		\textbf{Operator Type} & \textbf{Semantic Mapping} &
+		\textbf{Monotonic Direction $\sigma(op)$} &
 		\textbf{Example and Interpretation} \\
 		\midrule
 		
-		\textbf{Aggregation} &
+		\textbf{Aggregation Functions} &
 		Set $\rightarrow$ Value &
-		\begin{tabular}[c]{@{}l@{}}$+1$: MAX, SUM, COUNT\\$-1$: MIN\end{tabular} &
-		Input set expands $\Rightarrow$ aggregated value increases (MAX/SUM) or decreases (MIN). \\
+		\begin{tabular}[t]{@{}l@{}}$+1$: \texttt{MAX}, \texttt{SUM}, \texttt{COUNT}\\$-1$: \texttt{MIN}\end{tabular} &
+		Expanding the input set increases the aggregated result for \texttt{MAX}/\texttt{SUM}/\texttt{COUNT}, or decreases it for \texttt{MIN}. \\[2pt]
 		
-		\midrule
 		\textbf{Predicate / Filter} &
 		Value $\rightarrow$ Set &
-		\begin{tabular}[c]{@{}l@{}}$+1$: $x>c$, $x\ge c$\\$-1$: $x<c$, $x\le c$\end{tabular} &
-		Increasing value makes predicate easier ($x>c$) or harder ($x<c$) to satisfy, thus expanding or shrinking result set. \\
+		\begin{tabular}[t]{@{}l@{}}$+1$: $x>c$, $x\ge c$\\$-1$: $x<c$, $x\le c$\end{tabular} &
+		Increasing the compared value makes $x>c$ easier (result set expands) and $x<c$ harder (result set shrinks). \\[2pt]
 		
-		\midrule
 		\textbf{Logical Operator} &
 		Set $\rightarrow$ Set &
-		\begin{tabular}[c]{@{}l@{}}$+1$: EXISTS\\$-1$: NOT, NOT EXISTS\end{tabular} &
-		Negation flips inclusion direction (\texttt{EXISTS} $\leftrightarrow$ \texttt{NOT EXISTS}). \\
+		\begin{tabular}[t]{@{}l@{}}$+1$: \texttt{EXISTS}, \texttt{OR}, \texttt{AND}\\$-1$: \texttt{NOT}, \texttt{NOT EXISTS}\end{tabular} &
+		\texttt{OR}/\texttt{EXISTS}/\texttt{AND} are monotone increasing w.r.t.\ each input (union/exists/intersection);
+		\texttt{NOT}/\texttt{NOT EXISTS} flip inclusion. \\[2pt]
 		
-		\midrule
 		\textbf{Arithmetic / Expression} &
 		Value $\rightarrow$ Value &
-		Depends on sign &
-		\texttt{x + 1} ($+1$) preserves direction; \texttt{-x} ($-1$) reverses monotonicity. \\
+		Depends on operator sign &
+		Linear arithmetic preserves or reverses direction:
+		\texttt{x + k} ($+1$ if $k>0$),
+		\texttt{x * k} ($+1$ if $k>0$, $-1$ if $k<0$),
+		and \texttt{-x} flips monotonicity. \\[2pt]
 		
-		\midrule
-		\textbf{Join / Projection / Subquery} &
+		\textbf{Join / Projection / Set Op} &
 		Set $\rightarrow$ Set &
-		$+1$ &
-		Structural operators preserve tuple inclusion without reversing semantic direction. \\
+		\begin{tabular}[t]{@{}l@{}}$+1$: \texttt{JOIN}, \texttt{SELECT}, \texttt{UNION}, \texttt{INTERSECT}\\
+			mixed: \texttt{EXCEPT} (\textit{left} $+1$ / \textit{right} $-1$)\end{tabular} &
+		Structural operators propagate tuple inclusion:
+		\texttt{JOIN}, basic \texttt{SELECT}, \texttt{UNION}, \texttt{INTERSECT} are monotone increasing;
+		\texttt{EXCEPT} increases with the left input but decreases with the right input. \\[2pt]
+		
+		\textbf{Subquery / CTE} &
+		Context-dependent &
+		\begin{tabular}[t]{@{}l@{}}$+1$: as \texttt{FROM}/CTE source\\inherits parent: scalar subquery\end{tabular} &
+		Monotonicity depends on usage context: (1) In the \texttt{FROM} clause (e.g., \texttt{SELECT * FROM (SELECT a FROM t)}), it acts as a data source and preserves inclusion ($+1$). (2) As a scalar subquery (e.g., \texttt{WHERE x > (SELECT AVG(y) FROM t)}), it inherits the outer predicate’s direction (\texttt{>} $\Rightarrow +1$, \texttt{<} $\Rightarrow -1$). (3) For a CTE (e.g., \texttt{WITH cte AS (...) SELECT * FROM cte}), it behaves similarly to a \texttt{FROM} subquery, typically monotonic ($+1$). \\[2pt]
 		
 		\bottomrule
 	\end{tabular}
 \end{table*}
 
 
+
 \subsection{Results Checking}
+\label{subsec:Results Checking}
 
