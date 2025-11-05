@@ -1,13 +1,39 @@
 \section{Implementation}
 \label{sec:Implementation}
-% Database population
-% 添加边界值
 
-% Test Case Generation
-% 手写生成器，支持更多的语法，同时确保语义正确性
+We implemented our approach \toolname\ as a DBMS testing system, which was written in Python with \textcolor{red}{8,055} lines of code.
+The source code of our tool is hosted in the github repository. \lin{add a url}
+The following describes the important implementation details.
 
-% Approximate mutator instantiation
+\textbf{Database Population.}
+We adopt the approach \textsc{Pinolo}~\cite{hao2023pinolo} to generate random database instances from scratch, while also covering most of the data types as specified in the SQL documentation. 
+Unlike existing methods of random database instance generation, \toolname\ also takes into account type-specific behaviors and boundary cases. 
+For each column, values are generated according to the constraints of the respective data type to ensure validity. 
+This helps prevent common runtime errors such as \texttt{INSERT} failures caused by out-of-range or incorrectly formatted values. 
+To increase the likelihood of triggering type-related errors, we also introduce boundary values, including extremely large or small numbers, as well as text with mixed case. 
+Additionally, to test specific arithmetic operations and function-related mutation operators, we explicitly specify the sign (positive or negative) for certain columns.
 
-% SQL Simplification
+\textbf{Test Case Generation and Parsing.}
+Similar to SQL generators like \textsc{SQLSmith}~\cite{sqlsmith} and \textsc{Go-randgen}~\cite{pingcap_gorandgen_2022}, we implement \toolname\ from scratch to generate original queries. \toolname\ ensures the consistency of data dependencies, function dependencies, and expression dependencies in query generation. It carefully selects tables and columns based on their usage patterns, applies the correct functions with compatible argument types, and maintains type compatibility across operations, ensuring semantic correctness. 
+This allows \toolname\ to achieve higher semantic accuracy than existing generators such as \textsc{SQLSmith} and \textsc{Go-randgen}, particularly in handling complex queries with multiple nested subqueries.
+To apply the approximate mutators to original queries, we use \textsc{SQLGlot}~\cite{tobymao_sqlglot}, which accepts the same context-free grammar used in seed query generation, to generate ASTs of original queries for mutation.
 
-% Bug Duplication
+\textbf{Bug Report Post-processing.}
+\toolname\ evaluates queries in the tested DBMS to obtain query results. 
+It is important to note that inconsistent query results often arise during our testing process. 
+To avoid repetitive bug reports and make the test results easier to understand, we first use \textsc{SQLess}~\cite{lin2024sqless} to simplify the bugs and pinpoint their root causes. Additionally, we follow the approach from \textsc{Pinolo}~\cite{hao2023pinolo} to remove duplicates.
+
+\textbf{Supported DBMSs and Adaptation.}
+\toolname\ is primarily designed around the MySQL syntax, ensuring robust support for MySQL-based databases, such as TiDB and OceanBase. 
+The architecture of \toolname\ is modular and decoupled, which facilitates easy adaptation to different DBMS dialects. 
+To integrate support for additional DBMS dialects, users only need to modify the relevant components to accommodate the specific syntax, data types, and operations of the target DBMS. 
+This adaptation is similar to extending \textsc{SQLSmith}~\cite{sqlsmith} and can be achieved with just a few hundred lines of code.
+A more streamlined approach is to leverage the latest extension tool, \textsc{QTRAN}~\cite{lin2025qtran}, which automates the process of adapting metamorphic-oracle-based logical bug detection techniques for multi-DBMS dialect support.
+
+
+%\section{Summary}
+% Adaptation
+
+% 通用框架：PINOLO提供了一个通用框架，能够扩展SQL查询语法并实例化更多的近似变换器，以增强发现复杂SQL查询触发的逻辑错误的能力。
+
+% 发现的bug类型

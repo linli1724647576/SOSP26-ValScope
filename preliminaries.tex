@@ -1,2 +1,63 @@
 \section{Background}
 \label{sec:Background}
+
+\subsection{Database Management Systems and SQL}
+
+\textbf{Database Management Systems.} 
+Database Management Systems (DBMSs) are fundamental to modern software ecosystems, offering systematic mechanisms for storing, organizing, and accessing large volumes of structured data. 
+This work focuses on \textit{relational DBMSs}, which manage data according to the relational model~\cite{codd1970relational}. 
+In such systems, data is organized into tables, each containing tuples (records) that represent real-world entities. 
+Mathematically, each table corresponds to a relation defined over a finite set of attributes, and the database comprises a collection of such relations. 
+In practice, DBMSs allow developers to efficiently insert, update, delete, and query data through structured interfaces, ensuring both data consistency and accessibility.
+
+\textbf{SQL.} 
+Structured Query Language (SQL)~\cite{chamberlin1974sequel} is the standard interface for interacting with relational DBMSs. 
+It provides a unified syntax for defining, manipulating, and querying data, and can be broadly classified into four categories: 
+Data Definition Language (DDL), Data Manipulation Language (DML), Data Query Language (DQL), and Data Control Language (DCL). 
+Among them, DQL, represented primarily by the \texttt{SELECT} statement, forms the core of data retrieval in relational systems. 
+DQL is used to specify the desired information without explicitly describing how it should be obtained, reflecting SQL’s declarative nature. 
+The \texttt{SELECT} statement supports rich semantics including filtering, grouping, aggregation, and joining across multiple relations, making it the most fundamental yet semantically complex component of SQL. 
+In this work, we focus on detecting logical bugs in DQL, as they constitute the majority of real-world query workloads and are crucial to ensuring the correctness and reliability of DBMS query processing.
+
+\subsection{Logical Bugs in DBMSs}
+
+\textbf{Logical Bugs.} 
+Logical bugs are one of the most critical types of bugs in DBMSs, silently causing incorrect query results without triggering system crashes~\cite{hao2023pinolo, lin2025qtran}. 
+Unlike crash bugs that exhibit obvious failures, logical bugs corrupt query outputs in subtle ways, posing serious risks to data integrity and application reliability. 
+%Detecting such bugs is particularly challenging due to the test oracle problem—it is often impossible to know the correct result of a complex SQL query in advance~\cite{hao2023pinolo}. 
+%Hence, an effective DBMS testing framework must infer correctness relations between queries without relying on manually crafted oracles.
+
+\textbf{Existing Detection Approaches.} 
+Existing research on detecting logical bugs mainly relies on automated testing techniques. 
+However, designing an effective testing framework is challenging due to the \textbf{test oracle problem}—it is difficult to determine the correct result of a complex SQL query for comparison. 
+To address this issue, researchers have explored three main categories of approaches~\cite{hao2023pinolo}. 
+The first is differential testing~\cite{bati2007genetic,slutz1998massive}, which executes the same query across multiple DBMSs and compares their outputs; inconsistencies reveal potential logic flaws, but dialect differences and heterogeneous semantics often limit its applicability.  
+The second, oracle-guided synthesis~\cite{rigger2020testing}, generates queries expected to return a specific pivot row and reports an error when the row is missing, but it only captures localized issues and fails to expose deeper semantic inconsistencies.  
+The third and most prominent category is metamorphic testing, which establishes expected semantic relations between pairs of systematically transformed queries.  
+This approach enables \textit{oracle-free} verification, offering better scalability and generality.  
+We will provide an in-depth analysis in the following section.
+
+
+\subsection{Metamorphic Testing}
+In recent years, metamorphic testing (MT) has become the most effective and widely adopted approach for detecting logical bugs in DBMSs~\cite{hao2023pinolo,lin2025qtran}.  
+The core idea of MT is to construct multiple SQL statements whose results are expected to satisfy a specific relation, known as a metamorphic relation (MR).  
+When the actual query results violate this relation, it indicates that at least one query triggers a logical bug in the tested DBMS.  
+
+\textbf{Equivalent MR.}
+Traditional MT, such as \textsc{NoREC}~\cite{rigger2020detecting} and \textsc{TLP}~\cite{rigger2020finding}, define the metamorphic relation as strict equivalence between the outputs of the original and transformed queries.  
+For example, \textsc{NoREC} transforms an optimizable query into a non-optimizable one, while \textsc{TLP} decomposes a predicate into multiple subqueries and merges their results to ensure equality. 
+Although this equivalence-based strategy effectively bypasses the lack of ground truth, it constrains the search space of test cases: the transformations typically preserve all operators, functions, and predicates of the original query, merely changing structural forms.  
+As a result, such approaches are limited to verifying surface-level correctness and often fail to reveal deeper semantic errors—particularly those that do not produce directly inconsistent result sets but still violate relational semantics internally~\cite{hao2023pinolo}.  
+
+\textbf{Approximation MR.}
+To overcome the over-restrictive nature of equivalence-based testing, \textsc{Pinolo}~\cite{hao2023pinolo} introduces the concept of set-semantic approximation relations, relaxing the equivalence assumption.
+By expanding or constraining query predicates, it generates over- and under-approximate queries and judges correctness through inclusion or containment relations between result sets. 
+This relaxation enables the detection of a broader spectrum of logical bugs, uncovering deeper semantic inconsistencies that equivalence-based approaches often miss~\cite{hao2023pinolo}.  
+
+However, approximation at the set level still overlooks subtle semantic shifts that occur at the value level, such as incorrect aggregations, ordering, or numeric deviations that preserve the same tuple set but alter the meaning of the result.
+Building on this insight, our work extends MT from set semantics to value semantics.  
+We propose a new class of value-semantic approximation relations that reason about the direction and magnitude of result changes while maintaining structural consistency.  
+By integrating set-semantic approximation with value-semantic approximation, our framework establishes a unified, multi-dimensional criterion for logical bug detection—enabling the discovery of more nuanced and deeply hidden semantic faults that existing MT frameworks cannot capture.
+
+
+ 

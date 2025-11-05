@@ -4,8 +4,7 @@
 \section{SQL Query Approximation}
 \label{sec: SQL Query Approximation}
 
-A fundamental challenge in DBMS testing lies in the test oracle problem:  
-given two semantically related SQL queries, it is often unclear whether their outputs should be identical or follow a predictable metamorphic relationship.  
+%A fundamental challenge in DBMS testing lies in the test oracle problem:  given two semantically related SQL queries, it is often unclear whether their outputs should be identical or follow a predictable metamorphic relationship.
 Traditional testing frameworks typically rely on strict equivalence or simple set inclusion checks, which are insufficient to capture subtle semantic deviations introduced by optimizer transformations or operator mutations~\cite{hao2023pinolo}.  
 To address this limitation, we introduce a more comprehensive notion of SQL Query Approximation,  which unifies two complementary perspectives of query behavior: the \textbf{set-semantic} and \textbf{value-semantic} dimensions.  
 The set-semantic dimension characterizes differences in the returned tuple sets, while the value-semantic dimension captures monotonic variations in the computed or aggregated values over those tuples.  
@@ -112,13 +111,13 @@ This allows the framework to detect logical bugs where queries return identical 
 Intuitively, the \textit{set-semantic approximation} (\( \preceq_D^s \)) describes inclusion of tuples,  
 while the \textit{value-semantic approximation} (\( \preceq_D^v \)) 
 reflects monotonicity among the values of corresponding tuples.  
-\lin{Check why can coexist?}
-In practice, the two forms often coexist:
-\[
-q_1 \preceq_D^s q_2 \;\wedge\; q_1 \preceq_D^v q_2
-\]
-which indicates that \( q_1 \) returns a subset of \( q_2 \)’s tuples 
-and the corresponding values in the target columns are not larger.
+%\lin{Check why can coexist?}
+%In practice, the two forms often coexist:
+%\[
+%q_1 \preceq_D^s q_2 \;\wedge\; q_1 \preceq_D^v q_2
+%\]
+%which indicates that \( q_1 \) returns a subset of \( q_2 \)’s tuples 
+%and the corresponding values in the target columns are not larger.
 
 \begin{example}
 	Consider a table \( t_1(c_1, c_2) \) as follows:
@@ -265,8 +264,8 @@ bridging the value- and set-level semantics within the same unified framework.
 
 Intuitively, the propagation mechanism provides the semantic bridge between 
 \textit{tuple-level inclusion} and \textit{value-level monotonicity}.
-Set-level approximations can trigger value changes through monotone operators,
-while value-level changes can, in turn, alter the query result set when the affected values participate in predicates.
+Set-level approximations can trigger value changes through monotone o perators,
+while value level changes can, in turn, alter the query result set when the affected values participate in predicates.
 This bidirectional propagation enables comprehensive reasoning over multi-layer SQL dependencies.
 
 
@@ -346,7 +345,7 @@ The unified propagation model forms the semantic foundation of our testing frame
 
 We illustrate the overall workflow of our approach in Figure~\ref{fig:overview}. 
 The entire process follows a generate–mutate–verify paradigm designed to uncover logic bugs in DBMSs. 
-In the pre-processing phase, we randomly populate multiple tables in a test database, following standard DBMS random testing practices~\cite{kamm2023testing}. 
+In the pre-processing phase, we randomly populate multiple tables in a test database, following standard DBMS random testing practices~\cite{rigger2020testing}. 
 This randomized setup provides a diverse and unbiased data distribution for subsequent query evaluations.
 Next, our system generates a syntactically valid SQL query that serves as the original query. 
 It then parses the query and traverses its AST to identify which grammatical constructs can be safely mutated. 
@@ -360,6 +359,17 @@ In the following sections, we introduce each core component in detail, including
 
 \subsection{Construction of the Original Query}
 \label{subsec:Construction of the Original Query}
+
+To support diverse SQL structures in testing, our framework constructs original queries based on a compact yet expressive SQL grammar, as illustrated in Figure~\ref{fig:sql-bnf-compact}.  
+This grammar extends the baseline adopted in \textsc{Pinolo}~\cite{hao2023pinolo} by incorporating a richer set of syntactic components, enabling the generation of more varied queries.  
+Compared with \textsc{Pinolo}, which mainly focuses on basic \texttt{SELECT--FROM--WHERE} statements, our implementation supports a broader range of SQL features, including comprehensive \texttt{JOIN} types and conditions, \texttt{WITH}-clause based common table expressions (CTEs), and row-level locking modes such as \texttt{FOR UPDATE}.  
+It also introduces extended functionalities such as \texttt{GROUP BY} with \texttt{HAVING} filters and \texttt{ORDER BY} clauses, nested function calls with type casting and \texttt{CASE} expressions.  
+These extensions collectively allow our system to generate queries that better reflect the syntactic and semantic richness of real-world DBMS workloads.
+
+A key difference between our design and \textsc{Pinolo} lies in the treatment of aggregation and grouping operations.  
+\textsc{Pinolo} does not support \texttt{GROUP BY} or \texttt{HAVING} clauses, as aggregation and window functions disrupt the set-containment relation on which its approximation model relies.   
+Specifically, once aggregation is introduced, the query output no longer preserves monotonic inclusion over tuples—adding or removing rows may alter the aggregated values in non-monotonic ways. 
+By contrast, our approach introduces a new class of value-semantic approximation relations as discussed in Section \ref{sec: SQL Query Approximation}, that model how numerical and aggregated results change under local semantic perturbations. 
 
 %\begin{figure}[t]
 %	\scriptsize
@@ -490,7 +500,12 @@ In the following sections, we introduce each core component in detail, including
 		\mid BE~\texttt{OR}~BE 
 		\\[2pt]
 		& & \mid &
-		\texttt{EXISTS}~(\;Q\;) \\[2pt]
+		\texttt{EXISTS}~(\;Q\;)
+		\mid VE~\texttt{IS}~[\texttt{NOT}]~\texttt{NULL} \\[2pt]
+		& & \mid &
+		VE~[\texttt{NOT}]~\texttt{IN}~(\;Q\; \mid VE~(\texttt{,}~VE)^*\;) \\[2pt]
+
+
 		
 		\textit{CompOp} & COP & ::= &
 		\texttt{=} 
@@ -527,12 +542,14 @@ In the following sections, we introduce each core component in detail, including
 		id~[\texttt{.}~id] \\[2pt]
 		
 		\textit{Const} & CONST & ::= &
-		\text{integer, string, float, TRUE, FALSE, NULL}
+		\text{integer, float, string, date, time, timestamp,} \\[2pt]
+		& & & \text{binary, TRUE, FALSE, NULL} \\[2pt]
 	\end{array}
 	\]
-	\vspace{-3mm}
+	\vspace{-4mm}
 	\caption{\textbf{Compact SQL syntax supported by our approach.}}
 	\label{fig:sql-bnf-compact}
+	\vspace{-2mm}
 \end{figure}
 
 
@@ -808,4 +825,13 @@ The cumulative sign is therefore $(-1)\!\times\!(+1)\!\times\!(-1)\!\times\!(+1)
 
 \subsection{Results Checking}
 \label{subsec:Results Checking}
+
+The primary purpose of results checking is to verify whether the outputs of the original and mutated SQL queries align with the predicted approximation relations, as defined in the previous section. 
+Unlike traditional methods that rely on strict equivalence or set inclusion checks, which often miss subtle semantic differences, our approach incorporates both set-semantic and value-semantic approximation relations. 
+This allows us to detect a wider range of logical inconsistencies in DBMS query results.
+In our approach, after executing both queries, we compare their results based on the expected approximation relation (set or value). 
+Specifically, for set-semantic approximation, we check if the result set of the mutated query is a subset or superset of the original query's result set, as predicted by the approximation relation. 
+For value-semantic approximation, we compare the values in the target columns of both queries, ensuring that they satisfy the expected monotonic relationship (either increasing or decreasing).
+A violation of this relation signals a logical inconsistency in the DBMS's query processing.
+
 

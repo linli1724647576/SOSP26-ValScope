@@ -1,0 +1,45 @@
+\section{Related Work}
+
+\textbf{Logical Bug Detection in DBMSs.}
+A variety of approaches have been proposed to detect logical bugs in DBMSs~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}.  
+\textsc{NoREC}~\cite{rigger2020detecting} transforms an optimizable query into a non-optimizable form and detects semantic inconsistencies by comparing their outputs.  
+\textsc{TLP}~\cite{rigger2020finding} divides query predicates into multiple subqueries and verifies that the union of their results is equivalent to the original query.  
+\textsc{PQS}~\cite{rigger2020testing} constructs queries expected to retrieve a specific pivot row, while \textsc{DQE}~\cite{song2023testing} detects logical bugs by comparing whether different SQL queries with the same predicate access the same rows in the database.
+\textsc{TQS}~\cite{tang2023detecting} decomposes wide tables into smaller ones and uses the base table as ground truth for correctness validation.  
+\textsc{EET}~\cite{jiang2024detecting} applies expression-preserving transformations, and \textsc{Radar}~\cite{song2024detecting} compares query results between databases with and without metadata to identify semantic flaws.  
+\textsc{EDC}~\cite{deng2025detecting} detects logical bugs by substituting expressions with precomputed equivalent data and checking for inconsistent results, while \textsc{CODDTest}~\cite{zhang2025constant} leverages constant folding and propagation to generate equivalent queries.  
+
+Most of these methods rely on constructing \textbf{equivalent SQL pairs}, detecting bugs when such equivalence fails to hold.  
+Recently, \textsc{Pinolo}~\cite{hao2023pinolo} generalizes this paradigm through set-level approximation, where predicates are relaxed or restricted to generate over- and under-approximate queries, and correctness is judged by inclusion or containment relations between result sets.  
+%\textit{SRS}~\cite{} further explores semantic relations by transforming join queries—modifying join types, orders, and conditions—while maintaining consistent set-level semantics.  
+Building on this foundation, our work extends the set semantics to the value semantics level, enabling the detection of subtler logical errors that cannot be captured by set inclusion alone.  
+By combining set-level consistency with value-directional reasoning, our approach establishes a multi-dimensional criterion for identifying query approximations and uncovering deeply hidden semantic faults.
+
+
+\textbf{DBMS Test-Case Generation.}
+A variety of approaches have been proposed for generating diverse test cases for DBMSs, with the aim of improving coverage and revealing potential bugs. 
+These techniques~\cite{sqlsmith,zhong2020squirrel,fu2022griffin,jiang2023dynsql} typically focus on generating valid and varied SQL queries, but may not specifically target logical bugs. 
+\textsc{SQLsmith}~\cite{sqlsmith} is a grammar-based DBMS fuzzer that embeds SQL grammar rules to generate complex SQL queries. 
+It uses a random walk approach to explore the SQL syntax and generate a wide range of queries.
+\textsc{SQUIRREL}~\cite{zhong2020squirrel} is a mutation-based DBMS fuzzer which introduces an intermediate representation for SQL queries and models dependencies between SQL statements, enabling the generation of queries that contain multiple SQL operations. 
+\textsc{Griffin}~\cite{fu2022griffin} uses a grammar-free mutation approach, where it mutates SQL queries based on DBMS state information encapsulated in a metadata graph. 
+\textsc{QTRAN}~\cite{lin2025qtran} is a LLM-based approach that can automatically translate test cases from other DBMSs.
+\textsc{DynSQL}~\cite{jiang2023dynsql} takes a dynamic approach by interacting with the DBMS to capture the latest state information, allowing for the incremental generation of valid and complex queries.
+These techniques aim to prevent semantic errors and improve the diversity of generated queries. 
+In addition to general query generation, some approaches have been specifically designed to aid in bug detection. 
+\textsc{SQLRight}~\cite{liang2022detecting} leverages code coverage feedback to enhance test-case generation. 
+This feedback provides insights into which parts of the DBMS code are exercised, increasing the chances of uncovering logical bugs in infrequently executed paths. 
+\textsc{QPG}~\cite{ba2023testing} takes a different approach by recording the query plans covered during DBMS testing and prioritizing the mutation of queries that trigger new query plans. 
+This targeted mutation is more likely to expose logical bugs that might otherwise remain undetected.
+
+These general query generation approaches complement \toolname. 
+While approaches like \textsc{SQLsmith}, \textsc{SQUIRREL}, and \textsc{Griffin} focus on generating diverse queries, \toolname\ can help identify logical bugs hidden in complex or rarely executed query logic. 
+Conversely, the test cases generated by these methods can provide \toolname\ with high-quality and varied queries, expanding its ability to uncover bugs. 
+Together, these approaches offer a comprehensive strategy for DBMS testing, improving both query coverage and the detection of logical bugs.
+
+
+
+
+
+
+
