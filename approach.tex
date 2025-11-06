@@ -175,26 +175,44 @@ reflects monotonicity among the values of corresponding tuples.
 The approximation relations introduced in the previous section capture the semantic correspondence between two complete SQL queries by comparing their result sets or value outputs.  
 However, in practical DBMS testing, a mutation usually affects only a local part of the query---for instance, 
 a predicate, an operator, or an aggregation function---rather than the entire query.  
-To understand how such a local change influences the final query result, we extend the discussion from the semantic level of full-query comparison to the structural level of SQL.  
-Specifically, we define the concept of \textit{approximation propagation}, 
-which describes how a local approximation relation established at one node of the query’s abstract syntax tree (AST)
-can be transmitted through its parent operators and clauses, 
-thereby determining how a single mutation impacts the overall approximation behavior of the query.
+To describe and reason about such fine-grained changes, we first define the concept of an \textit{approximate mutator}, which serves as the smallest structural unit that can induce a local approximation within a query.  
 
+\begin{definition}[Approximate Mutator]
+	\label{def:approximate_mutator}
+	Let \( q \) denote an SQL query represented as an abstract syntax tree (AST) and \( n \in q \) a node of this tree.  
+	An \textit{approximate mutator} \( \mu \) is an operator that transforms \( n \) into a semantically related variant \( n' \)
+	such that the two nodes satisfy an approximation relation 
+	\( n \preceq_D^\alpha n' \) or \( n \succeq_D^\alpha n' \),
+	where \( \alpha \in \{s, v\} \) indicates the set-semantic or value-semantic level.
+	Each mutator \(\mu\) is characterized by:
+	\begin{itemize}[leftmargin=10pt]
+		\item \textbf{Scope:} the AST node type it applies to, such as predicate, arithmetic expression, aggregation function, or subquery;
+		\item \textbf{Transformation rule:} the syntactic or semantic change performed on the node (e.g., \texttt{<}$\rightarrow$\texttt{<=}, \texttt{MAX}$\rightarrow$\texttt{MIN}, adding a conjunct condition);
+		\item \textbf{Approximation type:} the type of approximation induced by the mutation, determined by both the direction and the semantic level of the change. The direction can be either \textit{under-approximation} or \textit{over-approximation}, while the semantic level can be either \textit{set-semantic} approximation or value-semantic approximation.
+	\end{itemize}
+	We denote the application of a mutator as \( n' = \mu(n) \), 
+	and the resulting local approximation relation as \( n \preceq_D^\alpha n' \) (or its inverse).
+\end{definition}
+
+An approximate mutator represents the atomic semantic deviation within a query that can propagate through its parent operators and affect the overall query result.  
+To understand how such a local change influences the final query output, we extend the discussion from the semantic level of full-query comparison to the structural level of SQL.  
+Specifically, we define the concept of \textit{approximation propagation},  which describes how a local approximation relation established at one node of the query’s AST can be transmitted through its parent operators and clauses, thereby determining how a single mutation impacts the overall approximation behavior of the query.
+
+%An approximate mutator, as defined above, introduces a local semantic deviation between two corresponding nodes \( n \) and \( n' = \mu(n) \) in the query’s AST.  
+%However, such a local deviation rarely remains confined to the mutated node itself.  
+%When the mutated node participates in higher-level clauses or operator compositions, its local approximation relation can be transmitted upward through the AST, thereby influencing the semantics of the entire query.  
+%To formally capture this phenomenon, we define the concept of \textit{approximation propagation}.
 
 \begin{definition}[Approximation Propagation]
 	\label{def:approximation_propagation}
 	
-	Let \( D \) be a database, and let \( n_1, n_2 \) denote two semantically comparable
-	nodes (e.g., subqueries, predicates, or expressions) in the SQL AST.
+	Let \( D \) be a database, and let \( n_1, n_2 \) denote two semantically comparable nodes (e.g., subqueries, predicates, or expressions) in the SQL AST.
+	These nodes may correspond directly to a mutation site introduced by an approximate mutator (\( n_2 = \mu(n_1) \) for some mutator \( \mu \)), or they may represent ancestor nodes whose semantics are indirectly affected by the propagation of such a local mutation.
 	We use the unified notation \( n_1 \preceq_D^\alpha n_2 \)
-	to represent an \textit{approximation relation} of type \( \alpha \in \{s, v\} \),
+	to represent an \textit{approximation relation} of type \( \alpha \in \{s, v\} \)
 	where \( s \) and \( v \) correspond to the set-semantic and value-semantic levels, respectively.
-	The relations defined in \S\ref{def:set_approximation} and \S\ref{def:value_approximation}
-	describe query-level approximations between complete queries.
-	In contrast, approximation propagation extends these relations to the structural level,
-	capturing how local approximations between AST nodes can influence or induce
-	approximations at higher layers of the query.
+	The relations defined in \S\ref{def:set_approximation} and \S\ref{def:value_approximation} describe query-level approximations between complete queries.
+	In contrast, approximation propagation extends these relations to the structural level, capturing how local approximations between AST nodes can influence or induce approximations at higher layers of the query.
 	
 %	Formally, let \( \sigma(op) \in \{+1, -1\} \) denote the \textit{monotonic direction} of an operator \( op \):
 %	\(+1\) means the operator preserves the approximation direction (monotone increasing),
@@ -332,6 +350,12 @@ The unified propagation model forms the semantic foundation of our testing frame
 
 \section{Approach}
 
+Based on the SQL Query Approximation model proposed in Section~\ref{sec: SQL Query Approximation}, we present a novel approach \toolname\ for detecting logical bugs in DBMSs. 
+Our approach leverages both set-semantic and value-semantic approximations to identify discrepancies in query results that traditional methods often overlook. 
+%We employ a generate–mutate–verify paradigm, where SQL queries are mutated and analyzed for semantic propagation across the query structure. 
+%This enables us to reason about how local changes, such as operator mutations or predicate modifications, affect the overall query behavior.
+In the following, we will provide detailed explanations of our approach.
+
 \subsection{Overview}
 
 \begin{figure*}[t]
@@ -464,10 +488,16 @@ By contrast, our approach introduces a new class of value-semantic approximation
 		\textit{FromClause} & FC & ::= & 
 		\texttt{FROM}~TR~(\texttt{,}~TR)^* \\[2pt]
 		
-		\textit{TableRef} & TR & ::= & 
-		id~[\texttt{AS}~id] 
-		\mid (\;Q\;)~\texttt{AS}~id 
-		\mid TR~JTYP~\texttt{JOIN}~TR~[\texttt{ON}~BE] \\[2pt]
+%		\textit{TableRef} & TR & ::= & 
+%		id~[\texttt{AS}~id] 
+%		\mid (\;Q\;)~\texttt{AS}~id 
+%		\mid TR~JTYP~\texttt{JOIN}~TR~[\texttt{ON}~BE] \\[2pt]
+		
+		\textit{TableRef} & TR & ::= &
+		id~[\texttt{AS}~id]
+		\mid (\;Q\;)~\texttt{AS}~id \\[2pt]
+		& & \mid & TR~JTYP~\texttt{JOIN}~TR~[\texttt{ON}~BE] \\[2pt]
+		
 		
 		\textit{JoinType} & JTYP & ::= &
 		\texttt{INNER} 
@@ -556,6 +586,59 @@ By contrast, our approach introduces a new class of value-semantic approximation
 
 \subsection{Approximate Mutators}
 \label{subsec:Approximate Mutators}
+
+To instantiate the SQL Query Approximation model proposed in Section~\ref{sec: SQL Query Approximation},  we design a collection of \textit{approximate mutators} that introduce controlled semantic deviations into an SQL query. 
+Each mutator corresponds to a localized modification applied to a specific node of the query’s AST. 
+The design goal is to cover both set-level and value-level aspects of SQL semantics, enabling the discovery of a broad range of logical bugs in DBMSs.
+Table~\ref{tab:mutators_c1c2} presents some representative examples of these mutators, which are categorized into two primary classes: set-semantic and value-semantic mutators. 
+% 说明我们一共设计了多少类变异算子，详细的见仓库。
+Now we provide more explanations on the approximate mutators.
+% 解释一下这两类变异算子，类似Pinolo
+
+\begin{table}[t] 
+	\centering 
+	\scriptsize 
+	\caption{\textbf{Representative Approximate Mutators.} Transforming \textbf{C1} into \textbf{C2} achieves the under-approximation; the inverse achieves the over-approximation. \lin{Check the symbol consistence with Figure 2}} 
+	\label{tab:mutators_c1c2} 
+	\vspace{-2mm} 
+	\renewcommand{\arraystretch}{1.25} 
+	\setlength{\tabcolsep}{6pt} 
+	\begin{tabular}{|C{1.9cm}|C{2.6cm}|C{2.6cm}|} 
+		\hline 
+		\textbf{Type} & \textbf{C1} & \textbf{C2} \\ 
+		\hline 
+		\multicolumn{3}{|c|}{\textbf{Set-Semantic Mutators}} \\ 
+		\hline 
+		\multirow{3}{*}{\textbf{Relation}} 
+		& \texttt{SELECT a FROM r} & \texttt{SELECT DISTINCT a FROM r} \\ 
+		& \texttt{r1 UNION ALL r2} & \texttt{r1 UNION r2} \\ 
+		& \texttt{JOIN ... ON cond} & \texttt{JOIN ... ON 1=1} \\ 
+		\hline 
+		\multirow{4}{*}{\textbf{Predicate}} 
+		& \texttt{WHERE cond} & \texttt{WHERE 1=1} \\ 
+		& \texttt{HAVING cond} & \texttt{HAVING 1=1} \\ 
+		& \texttt{col LIKE '\_abc\%'} & \texttt{col LIKE '\%abc\%'} \\ 
+		& \texttt{col REGEXP '\textbackslash d+'} & \texttt{col REGEXP '\textbackslash d*'} \\ 
+		\hline 
+		\multirow{2}{*}{\textbf{Comparison Expression}} 
+		& \texttt{a $\geq$ b} & \texttt{a $\geq$ b} \\  
+		& \texttt{a $\leq$ b} & \texttt{a $\leq$ b} \\ 
+		\hline 
+		\multicolumn{3}{|c|}{\textbf{Value-Semantic Mutators}} \\ 
+		\hline 
+		\multirow{7}{*}{\textbf{Aggregation}} 
+		& \texttt{COUNT(DISTINCT c)} & \texttt{COUNT(c)} \\ 
+		& \texttt{COUNT(c)} & \texttt{COUNT(DISTINCT c)} \\ 
+		& \texttt{MAX(c)} & \texttt{MIN(c)} \\ 
+		& \texttt{MIN(c)} & \texttt{MAX(c)} \\ 
+		& \texttt{AVG(c)} & \texttt{MIN(c)} \\ 
+		& \texttt{AVG(c)} & \texttt{MAX(c)} \\ 
+		& \texttt{STDDEV\_SAMP(c)} & \texttt{VAR\_SAMP(c)} \\ 
+		\hline 
+	\end{tabular} 
+\end{table}
+
+% 介绍近似算子怎么应用于AST
 
 \subsection{Approximation Propagation Analysis}
 \label{subsec:Approximation Propagation Analysis}
@@ -773,7 +856,7 @@ The cumulative sign is therefore $(-1)\!\times\!(+1)\!\times\!(-1)\!\times\!(+1)
 	% 每隔一行使用灰色底色
 	\rowcolors{2}{rowgray}{white}
 	
-	\begin{tabular}{p{2.5cm} p{2.5cm} p{3.8cm} p{7.0cm}}
+	\begin{tabular}{p{2.7cm} p{2.3cm} p{3.8cm} p{7.0cm}}
 		\toprule
 		\textbf{Operator Type} & \textbf{Semantic Mapping} &
 		\textbf{Monotonic Direction $\sigma(op)$} &

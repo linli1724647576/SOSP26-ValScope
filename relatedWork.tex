@@ -12,7 +12,7 @@ A variety of approaches have been proposed to detect logical bugs in DBMSs~\cite
 Most of these methods rely on constructing \textbf{equivalent SQL pairs}, detecting bugs when such equivalence fails to hold.  
 Recently, \textsc{Pinolo}~\cite{hao2023pinolo} generalizes this paradigm through set-level approximation, where predicates are relaxed or restricted to generate over- and under-approximate queries, and correctness is judged by inclusion or containment relations between result sets.  
 %\textit{SRS}~\cite{} further explores semantic relations by transforming join queries—modifying join types, orders, and conditions—while maintaining consistent set-level semantics.  
-Building on this foundation, our work extends the set semantics to the value semantics level, enabling the detection of subtler logical errors that cannot be captured by set inclusion alone.  
+Building on this foundation, our work extends the set semantics to the value semantics level, enabling the detection of subtler logical bugs that cannot be captured by set inclusion alone.  
 By combining set-level consistency with value-directional reasoning, our approach establishes a multi-dimensional criterion for identifying query approximations and uncovering deeply hidden semantic faults.
 
 

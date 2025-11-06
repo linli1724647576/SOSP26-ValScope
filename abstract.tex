@@ -1,3 +1,12 @@
 \begin{abstract}
-	Pending...
+    Database Management Systems (DBMSs) are crucial for data processing in many large-scale applications. 
+    Detecting logical bugs in DBMSs is a challenging task, as traditional testing methods struggle to define what constitutes a "correct" query result. 
+    Metamorphic testing (MT) has emerged as a prominent solution to this problem, by establishing expected metamorphic relations between pairs of systematically transformed queries. 
+    However, existing MT approaches, which rely on \textit{equivalent} or \textit{set-semantic} relations, are limited in their ability to detect subtle semantic inconsistencies that do not alter the result set but corrupt the value semantics, such as incorrect aggregation, sorting, or numeric computation.
+	
+	In this paper, we introduce a unified \textit{SQL query approximation} model that combines both set-semantic and value-semantic reasoning to capture more nuanced logical bugs. 
+	The core idea is to not only reason about the inclusion or equivalence of result sets but also to model how changes in value semantics—such as the direction and magnitude of numeric changes—affect query correctness. 
+	Based on this model, we propose our approach, \toolname, which generates and mutates SQL queries according to predefined mutators, performing approximation propagation analysis to track how local semantic changes propagate and influence global query behavior.
+	We evaluate \toolname on \textcolor{red}{6} widely-used DBMSs and identify a total of \textcolor{red}{xxx} logical bugs, many of which were previously undetected by existing approaches. 
+	Our results demonstrate that \toolname\ significantly expands the scope of detectable logical bugs, capturing a broader range of bugs that remain invisible to current MT approaches.
 \end{abstract}

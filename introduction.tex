@@ -1,5 +1,62 @@
 \section{Introduction}
 \label{sec:intro}
 
+% DBMS Logical bug 以及 Detect Logical Bug 的方法
+Database Management Systems (DBMSs) play a critical role in applications such as online banking and e-commerce~\cite{florescu1998database, zhou2020database}. 
+Like other large-scale systems, DBMSs involve complex code logic and a wide range of functionalities, making them prone to bugs during both development and maintenance~\cite{adya1999weak, jiang2023dynsql, jung2019apollo}. 
+Among these, logical bugs are particularly critical as they silently lead to incorrect query results in DBMSs~\cite{rigger2020detecting, kamm2023testing, rigger2020detecting}.
+To detect logical bugs, existing approaches~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting} generate SQL queries to test DBMSs and check whether the produced results follow the expectations.
+One of the fundamental technical challenges in this process is to define what constitutes a correct result for a given query, which is a classical problem in software testing—known as the test oracle problem~\cite{howden2006theoretical}. 
+To address the test oracle problem, many methods have been proposed, such as differential testing~\cite{bati2007genetic,slutz1998massive} and oracle-guided synthesis~\cite{rigger2020testing}. 
+However, the most mainstream and effective approach currently is metamorphic testing (MT), which establishes expected semantic relations between pairs of systematically transformed queries~\cite{hao2023pinolo,lin2025qtran}. 
 
-% 举个逻辑错误的例子作为motivating example
+% 现有metamorphic testing的局限性
+Although MT has become the most effective paradigm for detecting logical bugs in DBMSs, existing MT approaches~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting} still struggle to capture many subtle semantic inconsistencies.  
+Current MT approaches can be broadly divided into two categories: those based on \textbf{equivalent metamorphic relations} and those based on \textbf{approximation metamorphic relations}.
+The first category, represented by \textsc{NoREC}~\cite{rigger2020detecting} and \textsc{TLP}~\cite{rigger2020finding}, defines the MR as strict output equivalence between the original and transformed queries.
+\textsc{NoREC} transforms an optimizable query into a non-optimizable form to verify that both versions produce identical results, while \textsc{TLP} partitions query predicates into multiple subqueries whose combined outputs are expected to equal the original result.  
+While these equivalence-based frameworks have proven effective in detecting optimizer and predicate-related inconsistencies, they remain insufficient to expose many deeply hidden bugs~\cite{hao2023pinolo}.  
+This limitation arises because, under a constrained mutation space, the pair of equivalent queries often still share the same buggy operators or functions, ultimately producing identical—but incorrect—results.  
+Consequently, such approaches are restricted to surface-level correctness and fail to uncover deeper semantic flaws that preserve structural equivalence yet violate relational semantics internally.
+
+The second category, exemplified by \textsc{Pinolo}~\cite{hao2023pinolo}, generalizes this paradigm through set-semantic approximation.  
+Instead of requiring exact equality, \textsc{Pinolo} relaxes query predicates to generate over- and under-approximate variants and checks whether the resulting sets satisfy inclusion or containment relations.  
+This relaxation significantly expands the detectable bug space, allowing the detection of subtle semantic inconsistencies that equivalence-based approaches often overlook.  
+However, approximation at the set level still neglects finer-grained deviations that occur within the same tuple set—such as erroneous aggregation, numeric computation, or ordering—where the result set remains unchanged but the value semantics are corrupted.  
+
+\lin{add a motivating example.}
+% 举个逻辑错误的例子作为motivating example，为什么其他工作detect不到这个bug
+
+% Key insight
+In many cases, logical bugs do not alter the result set but silently corrupt the underlying value semantics of the query output.  
+To capture such hidden inconsistencies more effectively, we introduce the notion of \textbf{value-semantic approximation}, which explicitly models the direction and magnitude of value changes through monotonic relationships.  
+By seamlessly integrating set-semantic approximation with value-semantic approximation, we establish \textbf{a unified and comprehensive SQL query approximation model} for logical bug detection—enabling the discovery of more nuanced and deeply hidden semantic faults that existing MT frameworks cannot capture.
+\lin{explain why the bug can be detected by the approximation model.}
+
+% Implement - Our approach
+Based on the proposed SQL query approximation model, we design a novel approach, \toolname\, which detects logical bugs in DBMSs by jointly reasoning about both set-semantic and value-semantic approximation.  
+\toolname\ follows a generate–mutate–verify paradigm.  
+It first generates syntactically valid and semantically diverse SQL queries and then systematically mutates them according to the defined approximation mutators.  
+For each pair of original and mutated queries, \toolname\ performs approximation propagation analysis to determine how local semantic mutations (e.g., changing \texttt{MAX} to \texttt{MIN} or relaxing predicates) affect global query behavior along the SQL abstract syntax tree (AST).
+Finally, both queries are executed on the target DBMS, and their outputs are compared against the predicted approximation relation.  
+Any violation of the expected set- or value-level relationship indicates a potential logical bug.  
+By integrating value-semantic reasoning with structural approximation, \toolname\ uncovers a wider range of subtle inconsistencies that remain invisible to prior MT frameworks.
+
+% Evaluation
+We implemented our approach as a practical DBMS testing tool and evaluate it on \textcolor{red}{6} widely-used and extensively-tested DBMSs, MySQL xxx.
+In total , we find xxx logical bugs
+% 参考 EET 或者 Pinolo 的写法。
+
+% Contribution
+Overall, we make the following contributions:
+\begin{itemize}
+	\item We propose a unified model, SQL query approximation, that combines set-semantic and value-semantic reasoning to detect logical bugs in DBMSs.  
+	
+	\item We develop and implement a novel metamorphic testing framework, \toolname, which systematically generates, mutates, and verifies SQL queries based on the proposed approximation relations, effectively identifying logical bugs in DBMSs.  
+	
+	\item We evaluate \toolname on \textcolor{red}{6} real-world DBMSs. In total, we found xxx logical bugs. To further facilitate research on DBMS testing, we open-source the tool at \lin{add a url}.  
+\end{itemize}
+
+
+
+
